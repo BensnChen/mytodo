@@ -13,528 +13,382 @@
   <!-- Vue 3 -->
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
   <style>
     [v-cloak] { display: none; }
-    
-    body {
-      -webkit-tap-highlight-color: transparent;
-      -webkit-touch-callout: none;
-    }
-    
-    .todo-item {
-      transition: all 0.3s ease;
-    }
-    
-    @media (hover: hover) {
-      .todo-item:hover {
-        transform: translateY(-2px);
-      }
-    }
-    
-    .completed {
-      opacity: 0.6;
-    }
-    
-    .completed .todo-title {
-      text-decoration: line-through;
-    }
-    
-    /* 移动端优化 */
-    @media (max-width: 640px) {
-      .stat-card {
-        padding: 0.75rem;
-      }
-      
-      .stat-value {
-        font-size: 1.5rem;
-      }
-      
-      .stat-label {
-        font-size: 0.75rem;
-      }
-    }
-    
-    /* 防止移动端双击缩放 */
-    button, a {
-      touch-action: manipulation;
-    }
+    body { -webkit-tap-highlight-color: transparent; }
+    .todo-item { transition: all 0.3s ease; }
+    @media (hover: hover) { .todo-item:hover { transform: translateY(-2px); } }
+    .completed { opacity: 0.6; }
+    .completed .todo-title { text-decoration: line-through; }
+    button, a { touch-action: manipulation; }
   </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-  <div id="app" v-cloak class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-4xl pb-safe">
+  <div id="app" v-cloak class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-4xl">
     
-    <!-- 头部 -->
-    <div class="text-center mb-6 sm:mb-12">
-      <h1 class="text-3xl sm:text-5xl font-bold text-gray-800 mb-2">📝 待办清单</h1>
-      <p class="text-sm sm:text-base text-gray-600">简单高效的任务管理</p>
-    </div>
-
-    <!-- 统计卡片 -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
-      <div class="stat-card bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm text-center">
-        <div class="stat-value text-2xl sm:text-3xl font-bold text-gray-800">{{ stats.total }}</div>
-        <div class="stat-label text-xs sm:text-sm text-gray-500 mt-1">全部</div>
-      </div>
-      <div class="stat-card bg-yellow-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm text-center">
-        <div class="stat-value text-2xl sm:text-3xl font-bold text-yellow-600">{{ stats.pending }}</div>
-        <div class="stat-label text-xs sm:text-sm text-gray-600 mt-1">待处理</div>
-      </div>
-      <div class="stat-card bg-blue-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm text-center">
-        <div class="stat-value text-2xl sm:text-3xl font-bold text-blue-600">{{ stats.inProgress }}</div>
-        <div class="stat-label text-xs sm:text-sm text-gray-600 mt-1">进行中</div>
-      </div>
-      <div class="stat-card bg-green-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm text-center">
-        <div class="stat-value text-2xl sm:text-3xl font-bold text-green-600">{{ stats.completed }}</div>
-        <div class="stat-label text-xs sm:text-sm text-gray-600 mt-1">已完成</div>
-      </div>
-    </div>
-
-    <!-- 新增待办 -->
-    <div class="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-8">
-      <div class="flex gap-2 sm:gap-3">
-        <input 
-          v-model="newTodo.title"
-          @keyup.enter="quickAddTodo"
-          type="text" 
-          placeholder="添加新任务..."
-          class="flex-1 px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-        
-        <button 
-          @click="showDetailForm = !showDetailForm"
-          class="px-3 sm:px-4 py-2 sm:py-3 text-lg sm:text-xl bg-gray-100 active:bg-gray-200 rounded-lg sm:rounded-xl transition-colors flex-shrink-0"
-          title="详细设置">
-          ⚙️
-        </button>
-        
-        <button 
-          @click="quickAddTodo"
-          class="px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base bg-blue-600 active:bg-blue-700 text-white rounded-lg sm:rounded-xl font-medium transition-colors flex-shrink-0">
-          添加
+    <!-- 配置提示 -->
+    <div v-if="!isConfigured" class="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
+      <h2 class="text-lg font-bold text-yellow-800 mb-4">⚠️ 请配置 Supabase</h2>
+      <p class="text-yellow-700 mb-4">首次使用需要配置 Supabase 连接信息</p>
+      <div class="space-y-3">
+        <input v-model="configForm.url" type="text" placeholder="Supabase Project URL" 
+               class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+        <input v-model="configForm.key" type="text" placeholder="Supabase Anon Key" 
+               class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+        <button @click="saveConfig" class="w-full bg-blue-600 text-white py-2 rounded-lg font-medium">
+          保存配置
         </button>
       </div>
+      <p class="text-xs text-yellow-600 mt-4">
+        获取方式：登录 Supabase → Settings → API → 复制 Project URL 和 anon public key
+      </p>
+    </div>
 
-      <!-- 详细表单 -->
-      <div v-if="showDetailForm" class="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-        <select v-model="newTodo.priority" class="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="low">🟢 低优先级</option>
-          <option value="medium">🟡 中优先级</option>
-          <option value="high">🔴 高优先级</option>
-        </select>
-        
-        <input 
-          v-model="newTodo.category"
-          type="text" 
-          placeholder="分类（如：工作、学习）"
-          class="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-        
-        <input 
-          v-model="newTodo.dueDate"
-          type="date"
-          class="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <!-- 主应用 -->
+    <div v-else>
+      <!-- 头部 -->
+      <div class="text-center mb-6 sm:mb-10">
+        <h1 class="text-3xl sm:text-5xl font-bold text-gray-800 mb-2">📝 待办清单</h1>
+        <p class="text-sm sm:text-base text-gray-600">简单高效的任务管理</p>
       </div>
-    </div>
 
-    <!-- 筛选标签 -->
-    <div class="flex flex-wrap gap-2 mb-4 sm:mb-6">
-      <button 
-        @click="filterStatus = ''"
-        :class="['px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors',
-                 filterStatus === '' ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 active:bg-gray-100']">
-        全部
-      </button>
-      <button 
-        @click="filterStatus = 'pending'"
-        :class="['px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors',
-                 filterStatus === 'pending' ? 'bg-yellow-500 text-white' : 'bg-white text-gray-600 active:bg-gray-100']">
-        待处理
-      </button>
-      <button 
-        @click="filterStatus = 'in-progress'"
-        :class="['px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors',
-                 filterStatus === 'in-progress' ? 'bg-blue-500 text-white' : 'bg-white text-gray-600 active:bg-gray-100']">
-        进行中
-      </button>
-      <button 
-        @click="filterStatus = 'completed'"
-        :class="['px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors',
-                 filterStatus === 'completed' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 active:bg-gray-100']">
-        已完成
-      </button>
-    </div>
+      <!-- 统计卡片 -->
+      <div class="grid grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
+        <div class="bg-white rounded-xl p-3 sm:p-4 shadow-sm text-center">
+          <div class="text-xl sm:text-3xl font-bold text-gray-800">{{ stats.total }}</div>
+          <div class="text-xs sm:text-sm text-gray-500">全部</div>
+        </div>
+        <div class="bg-yellow-50 rounded-xl p-3 sm:p-4 shadow-sm text-center">
+          <div class="text-xl sm:text-3xl font-bold text-yellow-600">{{ stats.pending }}</div>
+          <div class="text-xs sm:text-sm text-gray-600">待处理</div>
+        </div>
+        <div class="bg-blue-50 rounded-xl p-3 sm:p-4 shadow-sm text-center">
+          <div class="text-xl sm:text-3xl font-bold text-blue-600">{{ stats.inProgress }}</div>
+          <div class="text-xs sm:text-sm text-gray-600">进行中</div>
+        </div>
+        <div class="bg-green-50 rounded-xl p-3 sm:p-4 shadow-sm text-center">
+          <div class="text-xl sm:text-3xl font-bold text-green-600">{{ stats.completed }}</div>
+          <div class="text-xs sm:text-sm text-gray-600">已完成</div>
+        </div>
+      </div>
 
-    <!-- 待办列表 -->
-    <div class="space-y-2 sm:space-y-3">
-      <div 
-        v-for="todo in filteredTodos" 
-        :key="todo.id"
-        :class="['todo-item bg-white rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5', todo.status === 'completed' && 'completed']">
-        
-        <div class="flex items-start gap-3 sm:gap-4">
-          <!-- 状态切换 -->
-          <button 
-            @click="toggleStatus(todo)"
-            :class="['flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 transition-all mt-0.5 sm:mt-1 flex items-center justify-center',
-                     todo.status === 'completed' 
-                       ? 'bg-green-500 border-green-500' 
-                       : todo.status === 'in-progress'
-                       ? 'bg-blue-500 border-blue-500'
-                       : 'border-gray-300 active:border-blue-500']">
-            <span v-if="todo.status === 'completed'" class="text-white text-xs">✓</span>
-            <span v-else-if="todo.status === 'in-progress'" class="text-white text-xs leading-none">•</span>
-          </button>
+      <!-- 新增待办 -->
+      <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+        <div class="flex gap-2">
+          <input v-model="newTodo.title" @keyup.enter="addTodo" type="text" placeholder="添加新任务..."
+                 class="flex-1 px-3 py-2 sm:py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <button @click="showForm = !showForm" class="px-3 py-2 bg-gray-100 rounded-lg text-lg">⚙️</button>
+          <button @click="addTodo" class="px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-medium">添加</button>
+        </div>
+        <div v-if="showForm" class="mt-3 pt-3 border-t grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <select v-model="newTodo.priority" class="px-3 py-2 text-sm border rounded-lg">
+            <option value="low">🟢 低优先级</option>
+            <option value="medium">🟡 中优先级</option>
+            <option value="high">🔴 高优先级</option>
+          </select>
+          <input v-model="newTodo.category" type="text" placeholder="分类" class="px-3 py-2 text-sm border rounded-lg">
+          <input v-model="newTodo.due_date" type="date" class="px-3 py-2 text-sm border rounded-lg">
+        </div>
+      </div>
 
-          <!-- 内容 -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-start justify-between gap-2 sm:gap-3">
-              <div class="flex-1 min-w-0">
-                <h3 class="todo-title text-base sm:text-lg font-medium text-gray-800 mb-1 break-words">
-                  {{ todo.title }}
-                </h3>
-                <p v-if="todo.description" class="text-xs sm:text-sm text-gray-500 mb-2 break-words">
-                  {{ todo.description }}
-                </p>
-                
-                <div class="flex flex-wrap gap-1.5 sm:gap-2 text-xs">
-                  <span v-if="todo.priority" :class="getPriorityBadgeClass(todo.priority)">
-                    {{ getPriorityIcon(todo.priority) }} {{ getPriorityText(todo.priority) }}
-                  </span>
-                  <span v-if="todo.category" class="px-2 py-0.5 sm:py-1 bg-purple-100 text-purple-700 rounded-full whitespace-nowrap">
-                    🏷️ {{ todo.category }}
-                  </span>
-                  <span v-if="todo.due_date" class="px-2 py-0.5 sm:py-1 bg-gray-100 text-gray-600 rounded-full whitespace-nowrap">
-                    📅 {{ todo.due_date }}
-                  </span>
-                </div>
-              </div>
+      <!-- 筛选 -->
+      <div class="flex flex-wrap gap-2 mb-4">
+        <button v-for="f in filters" :key="f.value" @click="filter = f.value"
+                :class="['px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition',
+                         filter === f.value ? f.activeClass : 'bg-white text-gray-600']">
+          {{ f.label }}
+        </button>
+      </div>
 
-              <!-- 操作按钮 -->
-              <div class="flex gap-1 sm:gap-2 flex-shrink-0">
-                <button 
-                  @click="editTodo(todo)"
-                  class="text-gray-400 active:text-blue-600 transition-colors p-1 text-lg sm:text-xl"
-                  title="编辑">
-                  ✏️
-                </button>
-                <button 
-                  @click="deleteTodo(todo.id)"
-                  class="text-gray-400 active:text-red-600 transition-colors p-1 text-lg sm:text-xl"
-                  title="删除">
-                  🗑️
-                </button>
+      <!-- 加载中 -->
+      <div v-if="loading" class="text-center py-12">
+        <div class="text-4xl mb-4">⏳</div>
+        <p class="text-gray-500">加载中...</p>
+      </div>
+
+      <!-- 待办列表 -->
+      <div v-else class="space-y-2">
+        <div v-for="todo in filteredTodos" :key="todo.id"
+             :class="['todo-item bg-white rounded-xl shadow-sm p-4', todo.status === 'completed' && 'completed']">
+          <div class="flex items-start gap-3">
+            <button @click="toggleStatus(todo)"
+                    :class="['flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5',
+                             todo.status === 'completed' ? 'bg-green-500 border-green-500' :
+                             todo.status === 'in-progress' ? 'bg-blue-500 border-blue-500' : 'border-gray-300']">
+              <span v-if="todo.status === 'completed'" class="text-white text-xs">✓</span>
+              <span v-else-if="todo.status === 'in-progress'" class="text-white text-xs">•</span>
+            </button>
+            <div class="flex-1 min-w-0">
+              <h3 class="todo-title text-base font-medium text-gray-800 break-words">{{ todo.title }}</h3>
+              <div class="flex flex-wrap gap-1.5 mt-2 text-xs">
+                <span :class="priorityClass(todo.priority)">{{ priorityIcon(todo.priority) }} {{ priorityText(todo.priority) }}</span>
+                <span v-if="todo.category" class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">🏷️ {{ todo.category }}</span>
+                <span v-if="todo.due_date" class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">📅 {{ todo.due_date }}</span>
               </div>
             </div>
+            <div class="flex gap-1">
+              <button @click="editTodo(todo)" class="p-1 text-gray-400 text-lg">✏️</button>
+              <button @click="deleteTodo(todo.id)" class="p-1 text-gray-400 text-lg">🗑️</button>
+            </div>
           </div>
+        </div>
+
+        <div v-if="filteredTodos.length === 0" class="text-center py-12">
+          <div class="text-5xl mb-4">📭</div>
+          <p class="text-gray-500">暂无待办事项</p>
         </div>
       </div>
 
-      <!-- 空状态 -->
-      <div v-if="filteredTodos.length === 0" class="text-center py-12 sm:py-16">
-        <div class="text-5xl sm:text-6xl mb-4">📭</div>
-        <p class="text-gray-500 text-base sm:text-lg">暂无待办事项</p>
-        <p class="text-gray-400 text-xs sm:text-sm mt-2">添加第一个任务开始吧！</p>
-      </div>
-    </div>
-
-    <!-- 编辑对话框 -->
-    <div v-if="editingTodo" class="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50" @click.self="editingTodo = null">
-      <div class="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg sm:w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
-        <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">编辑任务</h2>
-        
-        <div class="space-y-3 sm:space-y-4">
-          <div>
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">标题</label>
-            <input 
-              v-model="editForm.title"
-              type="text"
-              class="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-          </div>
-
-          <div>
-            <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">描述</label>
-            <textarea 
-              v-model="editForm.description"
-              rows="3"
-              class="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2 sm:gap-4">
-            <div>
-              <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">状态</label>
-              <select v-model="editForm.status" class="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="pending">待处理</option>
-                <option value="in-progress">进行中</option>
-                <option value="completed">已完成</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">优先级</label>
-              <select v-model="editForm.priority" class="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="low">低</option>
-                <option value="medium">中</option>
-                <option value="high">高</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-            <div>
-              <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">分类</label>
-              <input 
-                v-model="editForm.category"
-                type="text"
-                class="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <div>
-              <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">截止日期</label>
-              <input 
-                v-model="editForm.dueDate"
-                type="date"
-                class="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-200 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-          </div>
-        </div>
-
-        <div class="flex gap-2 sm:gap-3 mt-6 sm:mt-8">
-          <button 
-            @click="editingTodo = null"
-            class="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base bg-gray-100 active:bg-gray-200 text-gray-700 rounded-lg sm:rounded-xl font-medium transition-colors">
-            取消
-          </button>
-          <button 
-            @click="saveEdit"
-            class="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base bg-blue-600 active:bg-blue-700 text-white rounded-lg sm:rounded-xl font-medium transition-colors">
-            保存
-          </button>
-        </div>
+      <!-- 设置按钮 -->
+      <div class="text-center mt-8">
+        <button @click="clearConfig" class="text-xs text-gray-400 hover:text-gray-600">重置配置</button>
       </div>
     </div>
 
-    <!-- 页脚 -->
-    <div class="text-center mt-8 sm:mt-12 text-gray-500 text-xs sm:text-sm pb-4">
-      <p>© 2026 待办清单 · 简单高效</p>
+    <!-- 编辑弹窗 -->
+    <div v-if="editing" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50" @click.self="editing = null">
+      <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl font-bold mb-4">编辑任务</h2>
+        <div class="space-y-3">
+          <input v-model="editForm.title" type="text" placeholder="标题" class="w-full px-4 py-2 border rounded-lg">
+          <div class="grid grid-cols-2 gap-3">
+            <select v-model="editForm.status" class="px-4 py-2 border rounded-lg">
+              <option value="pending">待处理</option>
+              <option value="in-progress">进行中</option>
+              <option value="completed">已完成</option>
+            </select>
+            <select v-model="editForm.priority" class="px-4 py-2 border rounded-lg">
+              <option value="low">低</option>
+              <option value="medium">中</option>
+              <option value="high">高</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <input v-model="editForm.category" type="text" placeholder="分类" class="px-4 py-2 border rounded-lg">
+            <input v-model="editForm.due_date" type="date" class="px-4 py-2 border rounded-lg">
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button @click="editing = null" class="flex-1 py-2 bg-gray-100 rounded-lg">取消</button>
+          <button @click="saveEdit" class="flex-1 py-2 bg-blue-600 text-white rounded-lg">保存</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- API 配置 -->
-  <script src="config.js"></script>
-  
   <script>
-    const { createApp, ref, reactive, computed, onMounted } = Vue;
-
-    // 使用 config.js 中定义的 API 地址
-    const API_BASE_URL = window.API_BASE_URL || 'http://localhost:3000/api';
+    const { createApp, ref, reactive, computed, onMounted, watch } = Vue;
 
     createApp({
       setup() {
-        const todos = ref([]);
-        const filterStatus = ref('');
-        const showDetailForm = ref(false);
-        const editingTodo = ref(null);
+        // Supabase 客户端
+        let supabase = null;
         
+        // 状态
+        const isConfigured = ref(false);
+        const loading = ref(false);
+        const todos = ref([]);
+        const filter = ref('');
+        const showForm = ref(false);
+        const editing = ref(null);
+        
+        // 配置表单
+        const configForm = reactive({ url: '', key: '' });
+        
+        // 新增表单
         const newTodo = reactive({
-          title: '',
-          description: '',
-          priority: 'medium',
-          category: '',
-          dueDate: ''
+          title: '', priority: 'medium', category: '', due_date: ''
         });
-
+        
+        // 编辑表单
         const editForm = reactive({
-          title: '',
-          description: '',
-          status: 'pending',
-          priority: 'medium',
-          category: '',
-          dueDate: ''
+          title: '', status: 'pending', priority: 'medium', category: '', due_date: ''
         });
 
-        const stats = computed(() => {
-          return {
-            total: todos.value.length,
-            pending: todos.value.filter(t => t.status === 'pending').length,
-            inProgress: todos.value.filter(t => t.status === 'in-progress').length,
-            completed: todos.value.filter(t => t.status === 'completed').length
-          };
-        });
+        // 筛选选项
+        const filters = [
+          { value: '', label: '全部', activeClass: 'bg-gray-800 text-white' },
+          { value: 'pending', label: '待处理', activeClass: 'bg-yellow-500 text-white' },
+          { value: 'in-progress', label: '进行中', activeClass: 'bg-blue-500 text-white' },
+          { value: 'completed', label: '已完成', activeClass: 'bg-green-500 text-white' }
+        ];
+
+        // 计算属性
+        const stats = computed(() => ({
+          total: todos.value.length,
+          pending: todos.value.filter(t => t.status === 'pending').length,
+          inProgress: todos.value.filter(t => t.status === 'in-progress').length,
+          completed: todos.value.filter(t => t.status === 'completed').length
+        }));
 
         const filteredTodos = computed(() => {
-          if (!filterStatus.value) return todos.value;
-          return todos.value.filter(t => t.status === filterStatus.value);
+          if (!filter.value) return todos.value;
+          return todos.value.filter(t => t.status === filter.value);
         });
 
-        const loadTodos = async () => {
-          try {
-            const response = await fetch(`${API_BASE_URL}/todos`);
-            const result = await response.json();
-            if (result.success) {
-              todos.value = result.data;
-            }
-          } catch (error) {
-            console.error('加载失败:', error);
-            alert('加载待办事项失败，请检查网络连接');
+        // 初始化 Supabase
+        const initSupabase = () => {
+          const config = JSON.parse(localStorage.getItem('supabase_config') || '{}');
+          if (config.url && config.key) {
+            supabase = window.supabase.createClient(config.url, config.key);
+            isConfigured.value = true;
+            loadTodos();
           }
         };
 
-        const quickAddTodo = async () => {
+        // 保存配置
+        const saveConfig = () => {
+          if (!configForm.url || !configForm.key) {
+            alert('请填写完整的配置信息');
+            return;
+          }
+          localStorage.setItem('supabase_config', JSON.stringify({
+            url: configForm.url.trim(),
+            key: configForm.key.trim()
+          }));
+          initSupabase();
+        };
+
+        // 清除配置
+        const clearConfig = () => {
+          if (confirm('确定要重置配置吗？')) {
+            localStorage.removeItem('supabase_config');
+            isConfigured.value = false;
+            configForm.url = '';
+            configForm.key = '';
+          }
+        };
+
+        // 加载待办
+        const loadTodos = async () => {
+          if (!supabase) return;
+          loading.value = true;
+          try {
+            const { data, error } = await supabase
+              .from('todos')
+              .select('*')
+              .order('created_at', { ascending: false });
+            if (error) throw error;
+            todos.value = data || [];
+          } catch (e) {
+            console.error('加载失败:', e);
+            alert('加载失败：' + e.message);
+          } finally {
+            loading.value = false;
+          }
+        };
+
+        // 添加待办
+        const addTodo = async () => {
           if (!newTodo.title.trim()) {
             alert('请输入任务标题');
             return;
           }
-
           try {
-            const response = await fetch(`${API_BASE_URL}/todos`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                title: newTodo.title,
-                description: newTodo.description,
-                priority: newTodo.priority,
-                category: newTodo.category,
-                dueDate: newTodo.dueDate,
-                status: 'pending'
-              })
-            });
-
-            const result = await response.json();
-            if (result.success) {
-              await loadTodos();
-              newTodo.title = '';
-              newTodo.description = '';
-              newTodo.category = '';
-              newTodo.dueDate = '';
-              newTodo.priority = 'medium';
-              showDetailForm.value = false;
-            }
-          } catch (error) {
-            console.error('添加失败:', error);
-            alert('添加失败，请重试');
+            const { error } = await supabase.from('todos').insert([{
+              title: newTodo.title,
+              status: 'pending',
+              priority: newTodo.priority,
+              category: newTodo.category || null,
+              due_date: newTodo.due_date || null
+            }]);
+            if (error) throw error;
+            newTodo.title = '';
+            newTodo.category = '';
+            newTodo.due_date = '';
+            showForm.value = false;
+            await loadTodos();
+          } catch (e) {
+            alert('添加失败：' + e.message);
           }
         };
 
+        // 切换状态
         const toggleStatus = async (todo) => {
-          const statusMap = {
-            'pending': 'in-progress',
-            'in-progress': 'completed',
-            'completed': 'pending'
-          };
-
+          const statusMap = { 'pending': 'in-progress', 'in-progress': 'completed', 'completed': 'pending' };
           try {
-            const response = await fetch(`${API_BASE_URL}/todos/${todo.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ...todo,
-                status: statusMap[todo.status]
-              })
-            });
-
-            if (response.ok) {
-              await loadTodos();
-            }
-          } catch (error) {
-            console.error('更新失败:', error);
+            const { error } = await supabase
+              .from('todos')
+              .update({ status: statusMap[todo.status] })
+              .eq('id', todo.id);
+            if (error) throw error;
+            await loadTodos();
+          } catch (e) {
+            alert('更新失败：' + e.message);
           }
         };
 
+        // 编辑待办
         const editTodo = (todo) => {
-          editingTodo.value = todo;
+          editing.value = todo;
           editForm.title = todo.title;
-          editForm.description = todo.description || '';
           editForm.status = todo.status;
           editForm.priority = todo.priority;
           editForm.category = todo.category || '';
-          editForm.dueDate = todo.due_date || '';
+          editForm.due_date = todo.due_date || '';
         };
 
+        // 保存编辑
         const saveEdit = async () => {
           if (!editForm.title.trim()) {
             alert('请输入任务标题');
             return;
           }
-
           try {
-            const response = await fetch(`${API_BASE_URL}/todos/${editingTodo.value.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
+            const { error } = await supabase
+              .from('todos')
+              .update({
                 title: editForm.title,
-                description: editForm.description,
                 status: editForm.status,
                 priority: editForm.priority,
-                category: editForm.category,
-                dueDate: editForm.dueDate
+                category: editForm.category || null,
+                due_date: editForm.due_date || null
               })
-            });
-
-            if (response.ok) {
-              await loadTodos();
-              editingTodo.value = null;
-            }
-          } catch (error) {
-            console.error('保存失败:', error);
-            alert('保存失败，请重试');
+              .eq('id', editing.value.id);
+            if (error) throw error;
+            editing.value = null;
+            await loadTodos();
+          } catch (e) {
+            alert('保存失败：' + e.message);
           }
         };
 
+        // 删除待办
         const deleteTodo = async (id) => {
-          if (!confirm('确定要删除这个任务吗？')) return;
-
+          if (!confirm('确定删除？')) return;
           try {
-            const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
-              method: 'DELETE'
-            });
-
-            if (response.ok) {
-              await loadTodos();
-            }
-          } catch (error) {
-            console.error('删除失败:', error);
-            alert('删除失败，请重试');
+            const { error } = await supabase.from('todos').delete().eq('id', id);
+            if (error) throw error;
+            await loadTodos();
+          } catch (e) {
+            alert('删除失败：' + e.message);
           }
         };
 
-        const getPriorityIcon = (priority) => {
-          const map = { 'high': '🔴', 'medium': '🟡', 'low': '🟢' };
-          return map[priority] || '⚪';
-        };
+        // 优先级辅助函数
+        const priorityIcon = (p) => ({ high: '🔴', medium: '🟡', low: '🟢' }[p] || '⚪');
+        const priorityText = (p) => ({ high: '高', medium: '中', low: '低' }[p] || p);
+        const priorityClass = (p) => ({
+          high: 'px-2 py-0.5 bg-red-100 text-red-700 rounded-full',
+          medium: 'px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full',
+          low: 'px-2 py-0.5 bg-green-100 text-green-700 rounded-full'
+        }[p] || 'px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full');
 
-        const getPriorityText = (priority) => {
-          const map = { 'high': '高', 'medium': '中', 'low': '低' };
-          return map[priority] || priority;
-        };
-
-        const getPriorityBadgeClass = (priority) => {
-          const map = {
-            'high': 'px-2 py-0.5 sm:py-1 bg-red-100 text-red-700 rounded-full whitespace-nowrap',
-            'medium': 'px-2 py-0.5 sm:py-1 bg-yellow-100 text-yellow-700 rounded-full whitespace-nowrap',
-            'low': 'px-2 py-0.5 sm:py-1 bg-green-100 text-green-700 rounded-full whitespace-nowrap'
-          };
-          return map[priority] || 'px-2 py-0.5 sm:py-1 bg-gray-100 text-gray-700 rounded-full whitespace-nowrap';
-        };
-
+        // 初始化
         onMounted(() => {
-          loadTodos();
+          initSupabase();
         });
 
         return {
-          todos,
-          filterStatus,
-          showDetailForm,
-          editingTodo,
-          newTodo,
-          editForm,
-          stats,
-          filteredTodos,
-          quickAddTodo,
-          toggleStatus,
-          editTodo,
-          saveEdit,
-          deleteTodo,
-          getPriorityIcon,
-          getPriorityText,
-          getPriorityBadgeClass
+          isConfigured, loading, todos, filter, showForm, editing,
+          configForm, newTodo, editForm, filters,
+          stats, filteredTodos,
+          saveConfig, clearConfig, loadTodos, addTodo, toggleStatus,
+          editTodo, saveEdit, deleteTodo,
+          priorityIcon, priorityText, priorityClass
         };
       }
     }).mount('#app');
