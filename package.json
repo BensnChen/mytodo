@@ -1,0 +1,23 @@
+{
+  "name": "todo-management",
+  "version": "1.0.0",
+  "description": "待办管理应用 - Full Stack Todo Management Application",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js"
+  },
+  "keywords": ["todo", "management", "express", "vue"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "@supabase/supabase-js": "^2.39.3",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
